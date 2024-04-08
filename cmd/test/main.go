@@ -34,6 +34,9 @@ func main() {
 		5.7以上 AttachRawLink
 	*/
 	// Attach ebpf program to a cgroupv2
+	fmt.Println(coll.Programs["connect4"].FD())
+	time.Sleep(1 * time.Second)
+
 	connectorlink, err := link.AttachCgroup(link.CgroupOptions{
 		Path:    cgroups.GetCgroupRoot(),
 		Program: coll.Programs["connect4"],
