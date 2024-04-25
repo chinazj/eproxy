@@ -59,16 +59,14 @@ func convertToCustomService(obj interface{}) interface{} {
 		p := &v1.Service{
 			TypeMeta: concreteObj.TypeMeta,
 			ObjectMeta: metav1.ObjectMeta{
-				Name:              concreteObj.Name,
-				Namespace:         concreteObj.Namespace,
-				ResourceVersion:   concreteObj.ResourceVersion,
-				DeletionTimestamp: concreteObj.DeletionTimestamp,
-				Annotations:       concreteObj.Annotations,
-				OwnerReferences:   concreteObj.OwnerReferences,
-				Labels:            concreteObj.Labels,
+				Name:      concreteObj.Name,
+				Namespace: concreteObj.Namespace,
+				Labels:    concreteObj.Labels,
 			},
-			Spec:   v1.ServiceSpec{},
-			Status: v1.ServiceStatus{},
+			Spec: v1.ServiceSpec{
+				Ports: concreteObj.Spec.Ports,
+				Type:  concreteObj.Spec.Type,
+			},
 		}
 		*concreteObj = v1.Service{}
 		return p
@@ -90,7 +88,10 @@ func convertToCustomService(obj interface{}) interface{} {
 					OwnerReferences:   service.OwnerReferences,
 					Labels:            service.Labels,
 				},
-				Spec:   v1.ServiceSpec{},
+				Spec: v1.ServiceSpec{
+					Ports: service.Spec.Ports,
+					Type:  service.Spec.Type,
+				},
 				Status: v1.ServiceStatus{},
 			},
 		}
@@ -110,6 +111,10 @@ func (informer *ServiceInformer) HasSynced() bool {
 		return false
 	}
 	return informer.controller.HasSynced()
+}
+
+func ComparesLabes(map1, map2 map[string]string) bool {
+	return false
 }
 
 func (informer *ServiceInformer) Run(stopCh <-chan struct{}) {
@@ -132,22 +137,23 @@ func (informer *ServiceInformer) Run(stopCh <-chan struct{}) {
 				obj = convertToCustomService(d.Object)
 				switch d.Type {
 				case cache.Sync, cache.Added, cache.Updated, cache.Replaced:
-					if old, exists, err := informer.indexer.Get(obj); err == nil && exists {
+					if _, exists, err := informer.indexer.Get(obj); err == nil && exists {
+						// 无需关注 service变化
+						// Selector将由 Endpoint支持
 						if err := informer.indexer.Update(obj); err != nil {
 							return err
 						}
-						informer.eventhandler.OnUpdate(old, obj)
 					} else {
 						if err := informer.indexer.Add(obj); err != nil {
 							return err
 						}
-						informer.eventhandler.OnAdd(obj)
+						//informer.eventhandler.OnAdd(obj)
 					}
 				case cache.Deleted:
 					if err := informer.indexer.Delete(obj); err != nil {
 						return err
 					}
-					informer.eventhandler.OnDelete(obj)
+					//informer.eventhandler.OnDelete(obj)
 				}
 			}
 			return nil
@@ -164,13 +170,20 @@ func (informer *ServiceInformer) Run(stopCh <-chan struct{}) {
 	informer.controller.Run(stopCh)
 }
 
+//func MetaNamespaceIndexFunc(obj interface{}) ([]string, error) {
+//	meta, err := meta.Accessor(obj)
+//	if err != nil {
+//		return []string{""}, fmt.Errorf("object has no meta: %v", err)
+//	}
+//	return []string{meta.GetNamespace()}, nil
+//}
+
 var _ cache.SharedIndexInformer = &ServiceInformer{}
 
 func defaultCustomServiceInformer(client kubernetes.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
 	indexer := cache.NewIndexer(cache.DeletionHandlingMetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	lw := &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-
 			return client.CoreV1().Services(v1.NamespaceAll).List(context.TODO(), options)
 		},
 		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {

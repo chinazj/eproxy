@@ -1,58 +1,43 @@
 // Copyright (c) 2016-2017 ByteDance, Inc. All rights reserved.
 package resource
 
-import "k8s.io/client-go/tools/cache"
-
-type EventType int
-
-const (
-	ServiceAdd    EventType = 1
-	ServiceDelete EventType = 2
-	ServiceUpdate EventType = 3
-
-	EndpointAdd    EventType = 4
-	EndpointDelete EventType = 5
-	EndpointUpdate EventType = 6
+import (
+	"github.com/eproxy/pkg/manager"
+	discovery "k8s.io/api/discovery/v1"
+	"k8s.io/client-go/tools/cache"
 )
 
-type KubernetesEvent struct {
-	KType     EventType
-	Name      string
-	Namespace string
+type ServiceAdapterHandler struct {
+	manager.ServiceHandler
 }
 
-type ServiceHandler struct {
-	event chan KubernetesEvent
+func (s *ServiceAdapterHandler) OnAdd(obj interface{}) {
+
 }
 
-func (s *ServiceHandler) OnAdd(obj interface{}) {
-	s.event <- KubernetesEvent{}
+func (s *ServiceAdapterHandler) OnUpdate(oldObj, newObj interface{}) {
+	//s.event <- KubernetesEvent{}
 }
 
-func (s *ServiceHandler) OnUpdate(oldObj, newObj interface{}) {
-	s.event <- KubernetesEvent{}
+func (s *ServiceAdapterHandler) OnDelete(obj interface{}) {
 }
 
-func (s *ServiceHandler) OnDelete(obj interface{}) {
-	s.event <- KubernetesEvent{}
+var _ cache.ResourceEventHandler = &ServiceAdapterHandler{}
+
+type EndpointSliceAdapterHandler struct {
+	manager.EndpointSliceHandler
 }
 
-var _ cache.ResourceEventHandler = &ServiceHandler{}
-
-type EndpointHandler struct {
-	event chan KubernetesEvent
+func (s *EndpointSliceAdapterHandler) OnAdd(obj interface{}) {
+	s.OnAddEndpointSlice(obj.(*discovery.EndpointSlice))
 }
 
-func (s *EndpointHandler) OnAdd(obj interface{}) {
-	s.event <- KubernetesEvent{}
+func (s *EndpointSliceAdapterHandler) OnUpdate(oldObj, newObj interface{}) {
+	s.OnUpdateEndpointSlice(oldObj.(*discovery.EndpointSlice), newObj.(*discovery.EndpointSlice))
 }
 
-func (s *EndpointHandler) OnUpdate(oldObj, newObj interface{}) {
-	s.event <- KubernetesEvent{}
+func (s *EndpointSliceAdapterHandler) OnDelete(obj interface{}) {
+	s.OnDeleteEndpointSlice(obj.(*discovery.EndpointSlice))
 }
 
-func (s *EndpointHandler) OnDelete(obj interface{}) {
-	s.event <- KubernetesEvent{}
-}
-
-var _ cache.ResourceEventHandler = &EndpointHandler{}
+var _ cache.ResourceEventHandler = &EndpointSliceAdapterHandler{}
