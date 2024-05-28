@@ -19,12 +19,12 @@ CFLAGS_KV :=					\
 	-D__NATIVE_EBPF__						\
 	-D__x86_64__
 
-all: connect.o
+all: service.o
 
-connect.o: connect.c
+service.o: service.c
 	$(CLANG) $(CFLAGS_KV) $(HEADER) -O2 -c $< -o -  | \
-	$(LLC) -march=bpf -filetype=obj -o connect.o
-	$(MV) connect.o ../output/
+	$(LLC) -march=bpf -filetype=obj -o service.o
+	$(MV) service.o ../output/
 
 clean:
-	$(RM) -rf ../output/connect.o
+	$(RM) -rf ../output/service.o
